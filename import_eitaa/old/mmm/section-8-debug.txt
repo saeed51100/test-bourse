@@ -1,0 +1,75 @@
+I am a Python developer working on Ubuntu.
+Task: Please correct the code for Part 8 for me.
+
+* My project uses:
+- Python + Conda (environment.yml)
+- Jupyter Notebook (.ipynb)
+- PyCharm
+- Selenium
+- phpMyAdmin/MySQL
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+- In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The relevant sections are:
+
+1. Database design in phpMyAdmin -> SQL codes
+2. Phone-number normalization
+3. Import Excel data into the database
+4. Chrome session persistence
+    Executing this section opens a Selenium Chrome session.
+
+5. Close Selenium and remove temporary Chrome profile
+6. Selenium Selectors
+    All selectors required by the application are defined and maintained in this section.
+
+7. Reliable waits. (This section provides the synchronization and waiting mechanisms required for the availability of elements.0
+8. Add contact to Eitaa
+    This section processes exactly one contact and performs exactly one attempt to add that contact to Eitaa.
+
+9. Fetching the Next Contact.
+    This section retrieves the next eligible contact from MySQL and returns the contact data to Section 10.
+10. Main processing loop.
+    This section controls the main processing loop for the 5,000 contacts and manages retries for contacts whose individual attempt in Section 8 results in failed.
+
+
+* Problem:
+Issue:
+I have executed and tested sections 1 through 10, and the program works; however, the code in section 8 is exhibiting unexpected behavior:
+1 - The database has been created in phpMyAdmin, and normalized contacts have been added and are visible.
+2 - A Chrome/Selenium session is running; I have authenticated into my Eitaa Web account, and the UI is visible.
+3 - I have executed the subsequent sections without errors, and the initial tests for all sections have passed.
+However, while running section 10 and the main loop, I observed an issue while watching the UI:
+- The problem is that in some cases the phone number field includes the country code while in others it does not, causing the data entry for some contacts to fail:
+
+Case 1:
++98□□□□□□□□□□
+
+Case 2:
++□□□□□□□□□□□□
+
+I noticed this while monitoring the UI. While some phone numbers were entered correctly and added to Eitaa, others failed to be added because they lacked the "98" (Iran) prefix.
+It appears this issue arises when we attempt to enter a new phone number into the relevant field. The application first clears the phone number field and then inserts the new number; in doing so, the "98" prefix is also erased—an outcome we want to avoid.
+In Case 1, the contact is successfully added to Eitaa, but in Case 2, it is not.
+
+*  Request:
+- During the initial code review, I noticed that the field-clearing logic exists in both sections 7 and 8.
+    1- The logic in section 7 is merely a helper function and should remain unchanged;
+    2- The logic in Section 8—under "Part 4: Enter normalized phone number"—must be modified as follows:
+        - The phone number field must be cleaned, and it must be verified that it has been cleared and is free of the "98" prefix.
+        - The prefix "98" should be added to the field.
+        - The normalized phone number, without the prefix, should be added to it as before.
+    3- There is no need to manage or manually add the "+" sign; it is added automatically in all cases.
+
+Please correct the code for Part 8 for me.
+You can use the functions from Section 7 if necessary.
+
+* Files provided:
+
+I have sent you the code for sections 7 and 8 in the file below.
+File: Sections_7-8_code.txt
+

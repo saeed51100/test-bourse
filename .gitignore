@@ -1,0 +1,3 @@
+.venv/
+envs/
+drivers/chromedriver/chromedriver

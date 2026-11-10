@@ -1,0 +1,103 @@
+I am a Python developer working on Ubuntu.
+Task: Please write the code for Section 8 of the Python/Selenium program for me.
+
+* My project uses:
+- Python + Conda (environment.yml)
+- Jupyter Notebook (.ipynb)
+- PyCharm
+- Selenium
+
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+- In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The main sections are:
+
+1. Phone-number normalization
+2. Import Excel data into the dataframe(df)
+3. Chrome/Selenium session persistence
+4. Close Selenium and remove temporary Chrome profile
+5. Selenium Selectors
+6. Reliable waits
+7. Add contact to Eitaa
+8. Main processing loop
+
+
+
+* Workflow:
+    Section 8 controls the main processing loop for adding contacts to Eitaa.
+    In each iteration, a contact is read from the dataframe (df), and then the add_contact() function from Section 7 is called to process that contact.
+
+* Section 7 task:
+    Adds only one contact to Eitaa in a single attempt.
+    In other words: The loop in Section 8 processes each contact only once using the `add_contact()` function.
+
+    Parameters
+    ----------
+    full_name : str
+        Contact name.
+
+    phone_normalized : str
+        Normalized Iranian phone number supplied by the DataFrame's `phone` column.
+
+    Returns
+    -------
+    str
+        One of:
+
+            "success"
+            "skipped"
+            "failed"
+
+    -----
+
+    Section 7 function interface:
+
+    The existing Section 7 function is named add_contact() and has the following signature:
+    def add_contact(full_name, phone_normalized):
+    Section 8 must call this existing function for each contact, passing the contact's full_name and phone_normalized values from df. The function returns "success", "skipped", or "failed".
+    Do not redefine or modify the Section 7 function.
+
+    -----
+
+* Section 8 task:
+
+    1. Read a contact from dataframe.
+    2. Processing exactly one contact using add_contact() function from Section 7.
+    3. Record the number of
+        - success
+        - skipped
+        - failed
+    in three counter and print their in the terminal, after the loop is finished.
+    4. Iterate over the DataFrame's rows in their existing order and use each row's contact_id as an identifier.
+
+* Additional information:
+    - I have written the code for parts 1 through 7; it has been tested and works correctly.
+    - Dataframe structure:
+        Running `df` in the notebook cell (with add column headers enabled):
+        df
+        "",contact_id,full_name,phone
+        0,0,Ali Ahmadi,9123456789
+        1,1,Reza Karimi,9123456780
+        2,2,Sara Mohammadi,9123456781
+        - The DataFrame column containing the normalized phone numbers is named `phone`. Section 8 must pass the value from this column to the `phone_normalized` parameter of `add_contact()`.
+    - Iterate through each row of the DataFrame in the existing order, using `contact_id` to identify each contact.
+    - The `contact_id` values are unique, sequential, and in ascending order, and the order of the DataFrame rows must be preserved.
+    - Each row must be passed to Section 7 at most once during a single execution of Section 8.
+        In other words, each contact must be processed only once.
+    - A "skipped" or "failed" result for a contact is for information purposes only, and the contact should not be processed again.
+    - Part 7 does not modify or maintain the "success," "skipped," and "failed" counters.
+        Only Part 8 is responsible for maintaining the counters and printing them to the terminal after the loop finishes.
+    - None of the sections should modify or write to `df`.
+    - The reference to the "next iteration" implies that the main loop in Section 8 must iterate through the DataFrame based on contact_id.
+        It should also maintain its counter.
+    - If Section 7 throws an error during the execution of the main loop, the contact must be marked as "failed," the "failed" counter incremented, and the loop continued.
+    - only exceptions raised while processing an individual contact through add_contact() should be caught and counted as failures. Errors in the loop's setup or other unexpected locations may be allowed to propagate.
+
+* Your Task:
+    - Please write the complete implementation of Section 8- "Main processing loop".
+    - The final implementation must be provided as Python code suitable for insertion into a new Jupyter Notebook cell immediately after Section 7.

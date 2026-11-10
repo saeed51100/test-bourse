@@ -1,0 +1,68 @@
+I am a Python developer working on Ubuntu. My project uses:
+
+* Python + Conda (`environment.yml`)
+* Jupyter Notebook (`.ipynb`)
+* PyCharm
+* Selenium
+* phpMyAdmin/MySQL
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+* In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+The relevant sections are:
+
+1. Database design in phpMyAdmin -> SQL codes
+2. Phone-number normalization
+3. Import Excel data into the database
+4. Selenium Chrome session persistence
+5. Close Selenium and remove temporary Chrome profile
+6. Selenium Selectors
+7. Reliable waits
+8. Add contact to Eitaa
+9. Fetching the Next Contact
+10. Main processing loop
+
+* The approach for adding contacts should be as follows:
+- Valid contacts are added, and the process immediately moves to the next contact.
+- A contact with an unregistered phone number is skipped, and the process moves to the next contact.
+- If the "add contact" operation fails or an error occurs, the process is retried three times (to ensure success) before moving to the next contact:
+
+A-  Registered number:
+1. Open the "Add Contact" window.
+2. The relevant fields are populated with the registered phone number.
+3. Mark/log the contact as success in the database.
+4. Mark it success in the database.
+5. Move directly to the next contact.
+6. Do not retry it.
+
+
+B- Unregistered number:
+1. Open the "Add Contact" window.
+2. The relevant fields are populated with the not registered phone number.
+3. Eitaa displays a pop-up stating: "The person with this phone number is not registered on Eitaa yet."
+4. Click the × button (in add contact window) to close the toast pop-up  message (if open).
+5. Click the × button (in add contact window) again to close the "Add Contact" window.
+6. Mark/log the contact as skipped in the database.
+7. Move directly to the next contact.
+8. Do not retry it.
+
+C- Failed/error:
+* Mark the attempt as `failed`.
+* Retry the contact up to 3 total attempts.
+* After the third failed attempt, leave it as `failed` and move to the next contact.
+
+   In other words:
+   Since we intend to add 5,000 contacts to Eitaa, we can—for the sake of greater reliability—process the failed contacts three times to confirm that they truly cannot be added to the platform.
+   Distinguish `skipped` (unregistered) contacts from retryable `failed` contacts:
+
+   Desired state flow:
+
+   | Eitaa result                      | Database state | Retry?                |
+   | --------------------------------- | -------------- | --------------------- |
+   | Contact added successfully        | `success`      | No                    |
+   | Phone number not registered       | `skipped`      | No                    |
+   | Add operation/error fails         | `failed`       | Yes, up to 3 attempts |
+   | 3rd failed attempt                | `failed`       | No                    |

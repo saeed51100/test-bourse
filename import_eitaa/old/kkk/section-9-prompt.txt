@@ -1,0 +1,121 @@
+I am a Python developer working on Ubuntu.
+
+* My project uses:
+- Python + Conda (environment.yml)
+- Jupyter Notebook (.ipynb)
+- PyCharm
+- Selenium
+- phpMyAdmin/MySQL
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+- In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The relevant sections are:
+
+1. Database design in phpMyAdmin -> SQL codes
+2. Phone-number normalization
+3. Import Excel data into the database
+4. Chrome session persistence
+    Executing this section opens a Selenium Chrome session.
+    Within this session, the Eitaa web interface must be accessed and the authentication process completed.
+
+5. Close Selenium and remove temporary Chrome profile
+6. Selenium Selectors
+    All selectors required by the application are defined and maintained in this section.
+
+7. Reliable waits. (This section provides the synchronization and waiting mechanisms required for the availability of elements.0
+8. Add contact to Eitaa
+    This section processes exactly one contact and performs exactly one attempt to add that contact to Eitaa.
+    Then Return a clear result to Section 10.
+    The possible results are:
+
+    - success
+    - skipped
+    - failed
+
+9. Fetching the Next Contact.
+    This section retrieves the next eligible contact from MySQL and returns the contact data to Section 10.
+10. Main processing loop.
+    This section controls the main processing loop for the 5,000 contacts and manages retries for contacts whose individual attempt in Section 8 results in failed.
+
+
+*  Request:
+I would like you to write the code for Part 10 for me:
+
+- Sections 1 through 9 have already been implemented, tested, and verified as working correctly.
+- Do not unnecessarily modify, replace, redesign, or duplicate the functionality of Sections 1–9.
+- Section 10 must integrate with the existing code and infrastructure.
+
+
+* Files provided:
+
+I have sent you the code for sections 1 through 8 in the file below. The code for section 9 should follow it:
+
+File: Sections_1-9_code.txt
+   - Contains the actual code for Sections 1–9.
+   - Treat this file as the source of truth for the existing implementation, including variable names, functions, selectors, database connection logic, Selenium driver usage, and wait helpers.
+
+Use the terminology, architecture, existing variables/functions, selectors, and conventions already established in these files whenever applicable.
+
+---
+
+* Workflow:
+Section 10 controls the main processing loop for adding contacts to Eitaa.
+In each iteration, Section 9 first retrieves the next eligible contact from the database and provides its data to Section 10.
+Section 10 then calls Section 8 to process that contact.
+
+Section 10 is responsible for:
+
+1. Fetching the next contact using Section 9.
+2. Processing exactly one contact using Section 8.
+3. Allowing Section 8 to record:
+   - success
+   - skipped
+   - failed
+4. Continuing to the next contact.
+5. Retrying failed contacts up to 3 total attempts.
+
+- Section 8 performs one actual Eitaa attempt.
+- Section 9 determines which contact should be processed next.
+- No additional Selenium wait mechanism is introduced here.
+
+---
+* Task
+
+- Write the complete implementation of Section 10- "Main Processing Loop".
+- The final implementation must be provided as Python code suitable for insertion into a new Jupyter Notebook cell immediately after Section 9.
+- Do not rewrite Sections 1–9.
+
+
+---
+
+* Database requirements:
+
+Section 9 must remain compatible with the existing database schema and the existing database-access architecture.
+Do not redesign the database.
+Do not create a new database table.
+Do not introduce a new status value.
+
+Preserve the distinction between:
+
+success
+skipped
+failed
+
+---
+
+
+* Code-quality requirements
+
+The final Section 10 implementation must be:
+
+- complete;
+- ready to paste into a new Jupyter Notebook cell;
+- compatible with the existing Sections 1–9 code;
+- readable and maintainable;
+- based on the existing project architecture;
+- free of unnecessary duplicated code;

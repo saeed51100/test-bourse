@@ -1,0 +1,29 @@
+I am a Python developer working on Ubuntu.
+Task: Tell me, what is the best approach for viewing and analyzing a phpMyAdmin database?
+
+* My project uses:
+- Python + Conda (environment.yml)
+- Jupyter Notebook (.ipynb)
+- PyCharm
+- Selenium
+- phpMyAdmin/MySQL
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+- In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The relevant sections are:
+
+1. Database design in phpMyAdmin -> SQL codes
+2. Phone-number normalization
+3. Import Excel data into the database
+4. Chrome session persistence
+5. Close Selenium and remove temporary Chrome profile
+6. Selenium Selectors
+7. Reliable waits.
+8. Add contact to Eitaa
+9. Fetching the Next Contact.
+10. Main processing loop.

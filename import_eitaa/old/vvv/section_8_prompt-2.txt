@@ -1,0 +1,675 @@
+I am a Python developer working on Ubuntu.
+* Role:
+Act as an experienced Python developer and Selenium automation specialist with expertise in debugging, explicit waits, browser interactions, and reliable error handling.
+
+* Title:
+Debugging Selenium Synchronization and Invalid-Contact Handling in Eitaa
+
+* Your Task:
+Review and debug Sections 6, 7, and 8 of my Python/Selenium application. Identify and correct synchronization issues, incorrect explicit waits, and problems with toast notifications and contact-window closure that may interfere with adding registered contacts. Ensure that unregistered contacts are handled correctly, each contact receives only one addition attempt, and the main processing loop proceeds reliably to the next contact without unnecessary delays.
+
+
+* My project uses:
+    - Python + Conda (environment.yml)
+    - Jupyter Notebook (.ipynb)
+    - PyCharm
+    - Selenium
+
+
+* Project
+    I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+    The program's function is to automatically add these contacts to Eitaa.
+    This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+    - In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The main sections are:
+
+    1. Phone-number normalization
+    2. Import Excel data into the dataframe(df)
+    3. Chrome/Selenium session persistence
+    4. Close Selenium and remove temporary Chrome profile
+    5. Selenium Selectors
+    6. Reliable waits
+    7. Add contact to Eitaa
+    8. Main processing loop
+
+
+* Workflow:
+    Section 8 controls the main processing loop for adding contacts to Eitaa.
+    In each iteration, a contact is read from the dataframe (df), and then the add_contact() function from Section 7 is called to process that contact.
+
+* Section 7 task:
+    Adds only one contact to Eitaa in a single attempt.
+    In other words: The loop in Section 8 processes each contact only once using the `add_contact()` function.
+
+Problem:
+    The program works and successfully adds contacts to my Eitaa contact list. However, some contacts fail to be added, even though their phone numbers are registered on Eitaa.
+    Based on my initial investigation, these failures may be caused by timing or synchronization issues in Selenium. Specifically, some elements may not be ready for interaction when the program attempts to enter contact information or save the contact.
+    Contact phone numbers fall into two categories, and Eitaa handles them differently during the contact-addition process:
+
+    1- Valid (registered) phone numbers: If the phone number is already registered on Eitaa, clicking the "ADD" button will successfully add the contact to your contact list and close the "Add Contact" window.
+    2- Invalid (unregistered) phone numbers: If a phone number is not already registered on Eitaa, clicking the "ADD" button will not add the contact to your contact list. Instead, a temporary message (shown below) will appear for 5 seconds, and the "Add Contact" window will remain open:
+    "The person with this phone number is not registered on Eitaa yet."
+    - The code is intended to function as follows: first, close the toast pop-up message, then close the "Add Contact" window, allowing the loop to continue and proceed to the next contact.
+    - My preliminary review indicates that approximately one-fifth of the phone numbers in my list are not registered on Eitaa, triggering the behavior described in point 2.
+    - The actual problem is that some valid, registered contacts also fail to be added.
+    - One possible explanation is that the five-second toast notification, combined with an incorrect or inefficient implementation of the explicit-wait mechanisms in Section 6, interferes with the processing of subsequent contacts or causes synchronization problems during contact addition.
+
+* Current code behavior (Unregistered phone number):
+    When observing the UI during application execution, the following behavior occurs:
+    When entering an invalid phone number—which triggers a toast pop-up message—clicking the "×" button on the "Add Contact" window closes that message (note that the toast itself does not contain an "×" button); this part functions correctly. Afterward, the "Add Contact" window remains open for 5 seconds before closing; this delay is unnecessary and undesirable.
+    The loop then continues.
+
+
+
+* Expected behavior (Unregistered phone number):
+    When entering an invalid phone number—which triggers a "toast" pop-up message—you must click the "×" button on the "Add Contact" window to close the message (since the toast message itself lacks an "×" button).
+    After that, you must click the "×" button on the "Add Contact" window once more; this time, it will close the "Add Contact" window and allow the loop to continue.
+    The second click should only be performed after the toast pop-up message has disappeared.
+    In the new implementation, you must ensure that elements are available when interacting with them.
+
+
+
+* Request:
+    I am providing the code for Sections 6, 7, and 8.
+    Please carefully review these sections and identify any errors, synchronization issues, incorrect wait conditions, or other operational problems within the "invalid Contacts" processing component that could prevent certain contacts from being added to the list.
+    You need to review the functions in Section 7—specifically those responsible for identifying and closing "toast" pop-up messages, as well as those that close the contact window—and then apply the necessary modifications throughout the code to ensure that the processing of invalid (unregistered) phone numbers does not interfere with the addition of valid (registered) contacts to the list.
+
+
+# ============================================================
+# 6- Reliable waits
+# ============================================================
+
+# Use explicit waits instead of time.sleep().
+#
+# The purpose of this section is to provide reusable,
+# reliable synchronization helpers for the Selenium code
+# used in later sections.
+#
+# These helpers are designed for situations such as:
+#   - waiting for Chrome/Eitaa elements to appear
+#   - waiting for an element to become visible
+#   - waiting for an element to become clickable
+#   - waiting for an element/popup to disappear
+#   - waiting for a specific Selenium condition
+#   - handling temporary/stale DOM elements
+#
+# ============================================================
+
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    NoSuchElementException,
+    ElementClickInterceptedException,
+)
+
+# ------------------------------------------------------------
+# General configuration
+# ------------------------------------------------------------
+
+WAIT_SECONDS = 30
+
+
+# ------------------------------------------------------------
+# 1. Create a WebDriverWait object
+# ------------------------------------------------------------
+
+def get_wait(driver, timeout=WAIT_SECONDS):
+    """
+    Return a WebDriverWait instance.
+
+    Parameters
+    ----------
+    driver : WebDriver
+        Active Selenium WebDriver.
+
+    timeout : int | float
+        Maximum number of seconds to wait.
+
+    Returns
+    -------
+    WebDriverWait
+    """
+    return WebDriverWait(
+        driver,
+        timeout,
+        poll_frequency=0.2,
+        ignored_exceptions=(
+            NoSuchElementException,
+            StaleElementReferenceException,
+        ),
+    )
+
+
+# ------------------------------------------------------------
+# 2. Wait until an element is visible
+# ------------------------------------------------------------
+
+def wait_visible(driver, locator, timeout=WAIT_SECONDS):
+    """
+    Wait until an element is present and visible.
+
+    Returns
+    -------
+    WebElement
+    """
+    return get_wait(driver, timeout).until(
+        EC.visibility_of_element_located(locator)
+    )
+
+
+# ------------------------------------------------------------
+# 3. Wait until an element is clickable
+# ------------------------------------------------------------
+
+def wait_clickable(driver, locator, timeout=WAIT_SECONDS):
+    """
+    Wait until an element is visible and enabled/clickable.
+
+    This should normally be used before clicking buttons,
+    links, menu items, etc.
+    """
+    return get_wait(driver, timeout).until(
+        EC.element_to_be_clickable(locator)
+    )
+
+
+# ------------------------------------------------------------
+# 4. Wait until an element disappears
+# ------------------------------------------------------------
+
+def wait_invisible(driver, locator, timeout=WAIT_SECONDS):
+    """
+    Wait until an element is no longer visible.
+
+    This is particularly useful for:
+        - closing popups
+        - waiting for dialogs to disappear
+        - waiting for loading overlays to disappear
+
+    Note:
+        Selenium's invisibility_of_element_located() also
+        succeeds if the element is removed from the DOM.
+    """
+    return get_wait(driver, timeout).until(
+        EC.invisibility_of_element_located(locator)
+    )
+
+
+
+# ------------------------------------------------------------
+# 5. Wait for a custom condition
+# ------------------------------------------------------------
+
+def wait_until(
+        driver,
+        condition,
+        timeout=WAIT_SECONDS,
+):
+    """
+    Wait until a custom Selenium condition returns a truthy
+    value.
+
+    The condition receives the driver.
+
+    Example:
+
+        wait_until(
+            driver,
+            lambda d: some_condition(d)
+        )
+
+    This is useful when Selenium's built-in expected
+    conditions are not sufficient.
+    """
+    return get_wait(driver, timeout).until(condition)
+
+
+# ------------------------------------------------------------
+# 6. Safe click helper
+# ------------------------------------------------------------
+
+def wait_and_click(driver, locator, timeout=WAIT_SECONDS):
+    """
+    Wait until an element is clickable and then click it.
+
+    Returns
+    -------
+    WebElement
+        The element that was clicked.
+    """
+    element = wait_clickable(
+        driver,
+        locator,
+        timeout,
+    )
+
+    element.click()
+
+    return element
+
+
+# ------------------------------------------------------------
+# 7. Wait for a popup to close
+# ------------------------------------------------------------
+
+def wait_popup_closed(
+        driver,
+        popup_locator,
+        timeout=WAIT_SECONDS,
+):
+    """
+    Wait until a popup/dialog is no longer visible.
+
+    This is a convenience wrapper around
+    wait_invisible().
+
+    It is intended for situations such as the Eitaa
+    Add Contact popup.
+    """
+    return wait_invisible(
+        driver,
+        popup_locator,
+        timeout,
+    )
+
+
+# ------------------------------------------------------------
+# 8. Wait for an element and then enter text
+# ------------------------------------------------------------
+
+def wait_and_type(
+        driver,
+        locator,
+        text,
+        timeout=WAIT_SECONDS,
+        clear_first=True,
+):
+    """
+    Wait for an input field to become visible and type text.
+
+    Parameters
+    ----------
+    driver : WebDriver
+        Active Selenium WebDriver.
+
+    locator : tuple
+        Selenium locator, for example:
+            (By.CSS_SELECTOR, "...")
+
+    text : str
+        Text to enter.
+
+    timeout : int | float
+        Maximum number of seconds to wait.
+
+    clear_first : bool
+        If True, clear the input before typing.
+
+    Returns
+    -------
+    WebElement
+        The input element.
+    """
+    element = wait_visible(
+        driver,
+        locator,
+        timeout,
+    )
+
+    if clear_first:
+        element.clear()
+
+    element.send_keys(text)
+
+    return element
+#%%
+# ============================================================
+# 7- Add Contact to Eitaa
+# ============================================================
+
+from selenium.common.exceptions import (
+    TimeoutException,
+    WebDriverException,
+)
+
+from selenium.webdriver.common.keys import Keys
+
+
+# ------------------------------------------------------------
+# Eitaa result
+# ------------------------------------------------------------
+
+UNREGISTERED_MESSAGE = (
+    "The person with this phone number is not registered on Eitaa yet."
+)
+
+
+# ------------------------------------------------------------
+# 7-1 Detect the unregistered-phone result
+# ------------------------------------------------------------
+
+def _get_unregistered_result(driver):
+    """
+    Return True when the Eitaa unregistered-phone toast is visible
+    and contains the expected message.
+
+    Return False when the toast is not currently present.
+    """
+
+    try:
+        toast_elements = driver.find_elements(
+            *Selectors.UNREGISTERED_TOAST
+        )
+
+        for toast in toast_elements:
+            if not toast.is_displayed():
+                continue
+
+            text = toast.text.strip()
+
+            if UNREGISTERED_MESSAGE in text:
+                return True
+
+    except WebDriverException:
+        return False
+
+    return False
+
+
+# ------------------------------------------------------------
+# 7-2 Detect result after Save
+# ------------------------------------------------------------
+
+def _wait_for_add_contact_result(driver):
+    """
+    Wait for the result of the current Add Contact attempt.
+
+    Returns:
+        "skipped" -> Eitaa reported that the phone is unregistered.
+        "success" -> The Add Contact window closed without that message.
+
+    Raises:
+        TimeoutException if neither result can be determined
+        within the configured wait period.
+    """
+
+    def result_condition(d):
+
+        # First priority: unregistered phone
+        if _get_unregistered_result(d):
+            return "skipped"
+
+        # Registered/success case: the Add Contact window closes.
+        try:
+            close_buttons = d.find_elements(
+                *Selectors.CLOSE_CONTACT_WINDOW
+            )
+
+            visible_close_buttons = [
+                button
+                for button in close_buttons
+                if button.is_displayed()
+            ]
+
+            if not visible_close_buttons:
+                return "success"
+
+        except WebDriverException:
+            return False
+
+        return False
+
+    return wait_until(
+        driver,
+        result_condition,
+    )
+
+
+# ------------------------------------------------------------
+# 7-3 Close Add Contact window
+# ------------------------------------------------------------
+
+def _close_add_contact_window(driver):
+    """
+    Close the Add Contact window using the existing × button.
+
+    First attempts to close the popup and waits for it to disappear.
+    If it remains visible, performs one additional click.
+    """
+
+    # First close attempt
+    wait_and_click(
+        driver,
+        Selectors.CLOSE_CONTACT_WINDOW,
+    )
+
+    # Wait for the popup to close.
+    try:
+        wait_popup_closed(
+            driver,
+            Selectors.CLOSE_CONTACT_WINDOW,
+            timeout=5,
+        )
+        return
+
+    except TimeoutException:
+        pass
+
+    # Retry the close action only if the popup remains visible.
+    wait_and_click(
+        driver,
+        Selectors.CLOSE_CONTACT_WINDOW,
+    )
+
+    wait_popup_closed(
+        driver,
+        Selectors.CLOSE_CONTACT_WINDOW,
+    )
+
+
+# ------------------------------------------------------------
+# 7-4 Enter phone number with Eitaa country prefix
+# ------------------------------------------------------------
+
+def _enter_phone_number(driver, phone_normalized):
+    """
+    Clear the Eitaa phone field, verify that the previous phone
+    number has been removed, then enter:
+
+        98 + normalized phone number
+
+    The '+' sign is NOT entered manually because Eitaa adds it
+    automatically.
+    """
+
+    # 1. Wait for the phone field
+    phone_field = wait_visible(
+        driver,
+        Selectors.PHONE,
+    )
+
+    # 2. Clear the existing contents
+    phone_field.click()
+    phone_field.clear()
+
+    phone_field.send_keys(
+        Keys.CONTROL,
+        "a",
+    )
+
+    phone_field.send_keys(
+        Keys.BACKSPACE,
+    )
+
+    # 3. Verify that the field has been cleared
+    def phone_field_is_cleared(d):
+        try:
+            element = d.find_element(
+                *Selectors.PHONE
+            )
+
+            value = element.get_attribute("value")
+
+            if value is None:
+                return True
+
+            value = value.strip()
+
+            return (
+                value == ""
+                or value == "+"
+            )
+
+        except WebDriverException:
+            return False
+
+    wait_until(
+        driver,
+        phone_field_is_cleared,
+        timeout=5,
+    )
+
+    # 4. Prepare the normalized phone number
+    phone_number = str(phone_normalized).strip()
+
+    if phone_number.startswith("98"):
+        raise ValueError(
+            "phone_normalized must not contain the country code 98."
+        )
+
+    # 5. Enter the country code and normalized phone number
+    phone_field = wait_visible(
+        driver,
+        Selectors.PHONE,
+    )
+
+    phone_field.send_keys(
+        "98" + phone_number
+    )
+
+
+# ============================================================
+# 7-5 Main Section 8 function
+# ============================================================
+
+def add_contact(
+        full_name,
+        phone_normalized,
+):
+    """
+    Process exactly ONE contact in exactly ONE attempt.
+
+    Parameters
+    ----------
+    full_name : str
+        Contact name.
+
+    phone_normalized : str
+        Normalized Iranian phone number supplied by the DataFrame.
+
+    Returns
+    -------
+    str
+        "success" if the contact is added successfully.
+        "skipped" if the phone number is not registered on Eitaa.
+
+    Raises
+    ------
+    Exception
+        Unexpected errors propagate to the caller.
+        The original exception type is preserved.
+    """
+
+    # 1. Open Add Contact window
+    wait_and_click(
+        driver,
+        Selectors.ADD_CONTACT_BUTTON,
+    )
+
+    # 2. Enter contact name
+    wait_and_type(
+        driver,
+        Selectors.FIRST_NAME,
+        str(full_name),
+    )
+
+    # 3. Enter normalized phone number
+    _enter_phone_number(
+        driver,
+        phone_normalized,
+    )
+
+    # 4. Submit Add Contact form
+    wait_and_click(
+        driver,
+        Selectors.SAVE_BUTTON,
+    )
+
+    # 5. Determine the result of this attempt
+    result = _wait_for_add_contact_result(driver)
+
+    # 6. Registered contact
+    if result == "success":
+        return "success"
+
+    # 7. Unregistered phone number
+    if result == "skipped":
+        _close_add_contact_window(driver)
+        return "skipped"
+
+    # Defensive guard for an unexpected helper return value
+    raise RuntimeError(
+        f"Unexpected Section 7 result: {result!r}"
+    )
+#%%
+# ============================================================
+# Section 8: Main Processing Loop
+# ============================================================
+
+success_count = 0
+skipped_count = 0
+
+print("=" * 60)
+print("Section 8: Main Processing Loop")
+print("=" * 60)
+
+for _, row in df.iterrows():
+    contact_id = row["contact_id"]
+    full_name = row["full_name"]
+    phone_normalized = row["phone"]
+
+    result = add_contact(
+        full_name=full_name,
+        phone_normalized=phone_normalized
+    )
+
+    if result == "success":
+        success_count += 1
+
+    elif result == "skipped":
+        skipped_count += 1
+
+    else:
+        # An unexpected return value indicates a programming error.
+        raise ValueError(
+            f"Contact ID {contact_id}: "
+            f"Unexpected return value {result!r}"
+        )
+
+# ------------------------------------------------------------
+# Final Summary
+# ------------------------------------------------------------
+
+print("\n" + "=" * 60)
+print("Section 8: Processing Summary")
+print("=" * 60)
+
+print(f"Total contacts: {len(df)}")
+print(f"Success:        {success_count}")
+print(f"Skipped:        {skipped_count}")
+
+print("=" * 60)
+print("Section 8 completed.")

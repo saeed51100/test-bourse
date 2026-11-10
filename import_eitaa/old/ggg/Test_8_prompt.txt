@@ -1,0 +1,20 @@
+I am a developer working with Python on Ubuntu.
+I am building a Python/Selenium application that reads 5,000 contacts from an Excel file and automatically imports them into Eitaa (an Iranian messaging app).
+My program consists of 10 sections, and I would like you to write the test code for Section 8.
+Sections 1 through 7 are already tested and functioning correctly.
+
+*Important:
+I have sent you four files; please study them carefully before writing the test and incorporate the information they contain into the test code:
+1- Project-Overview.txt: An introduction to the project.
+2- Design_requirements.txt: The design requirements.
+3- section-8-prompt.txt: The prompt I used to have ChatGPT write Section 8.
+4- Codes_1-8.txt: The main file is a `.ipynb` notebook where I have written the code for the various sections in separate cells; this file reflects that structure.
+
+This test requires two phone numbers:
+REGISTERED_PHONE = ""
+UNREGISTERED_PHONE = ""
+Please place these at the beginning of the code so I can fill in the values ​​and run the test.
+
+* Request:
+Please write a precise and comprehensive test for Section 8 that I can place in a Jupyter Notebook (.ipynb) cell—following the Section 8 code—and execute.
+Please ensure the test covers all possible scenarios.

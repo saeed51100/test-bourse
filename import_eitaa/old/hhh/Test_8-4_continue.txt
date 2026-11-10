@@ -1,0 +1,296 @@
+I am a Python developer working on Ubuntu.
+
+
+* My project uses:
+- Python + Conda (environment.yml)
+- Jupyter Notebook (.ipynb)
+- PyCharm
+- Selenium
+- phpMyAdmin/MySQL
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+- In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The relevant sections are:
+
+1. Database design in phpMyAdmin -> SQL codes
+2. Phone-number normalization
+3. Import Excel data into the database
+4. Selenium Chrome session persistence
+5. Close Selenium and remove temporary Chrome profile
+6. Selenium Selectors
+7. Reliable waits. (This section provides the synchronization and waiting mechanisms required for the availability of elements.0
+8. Add contact to Eitaa
+9. Fetching the Next Contact.(This section retrieves the next eligible contact from MySQL and returns the contact data to Section 10.)
+10. Main processing loop. (This section controls the main processing loop for the 5,000 contacts and manages retries for contacts whose individual attempt in Section 8 results in failed.
+)
+
+
+*  Request:
+Please write the remaining tests for Section 8 for me:
+
+- Sections 1 through 7 have already been implemented and tested, and their functionality has been verified.
+- The code for Section 8 has also been written.
+- The Section 8 code consists of several parts; I have written tests for parts 8-1, 8-2, and 8-3, and they have passed successfully.
+- I would like you to send me the subsequent tests for the Section 8 code gradually, one by one; once the test output is verified, you may proceed to write the test code for the next part.
+- I have written the tests for 8-1, 8-2, and 8-3 using the format below. Please write the tests for the subsequent parts for me:
+# ------------------------------------------------------------
+# TEST — Section 8-1 Database result update
+# ------------------------------------------------------------
+...
+Full report ...
+TEST PASSED
+
+# ------------------------------------------------------------
+# TEST — Section 8-2 Contacts page detection
+# ------------------------------------------------------------
+...
+Full report ...
+TEST PASSED
+
+# ------------------------------------------------------------
+# TEST — Section 8-3 Open Contacts area
+# ------------------------------------------------------------
+...
+Full report ...
+TEST PASSED
+
+---
+* Provided files:
+
+I have sent you the code for sections 1 through 8 in the file below.
+
+File: Sections_1-8_code.txt
+
+***************************
+From this point to the end of the conversation, I have outlined the information and rules used to write the code for Part 8.
+Using the information below and the code for Part 8 (which I sent you), you can write the remaining tests for Part 8:
+* Primary responsibility of Section 8
+
+Section 8 is responsible for processing exactly one contact in exactly one attempt.
+
+For one supplied contact, Section 8 must:
+
+1. Open the Contacts area if necessary.
+2. Open the Eitaa "Add Contact" window.
+3. Enter the contact's name.
+4. Enter the contact's normalized phone number.
+5. Submit the Add Contact form.
+6. Determine the result of this single attempt.
+7. Update/log the appropriate database state according to the existing project design.
+8. Return a clear result to Section 10.
+
+The possible results are:
+
+- success
+- skipped
+- failed
+
+The exact function signature, contact-data structure, database access pattern, and naming conventions should be derived from the existing project files rather than invented independently.
+
+---
+
+* Critical retry rule
+
+Section 8 must NEVER contain a retry loop.
+
+Section 8 must perform only one attempt for the supplied contact.
+
+It must not:
+
+- attempt the same contact a second time;
+- perform a three-attempt loop;
+- maintain its own retry counter;
+- decide whether a failed contact should be retried;
+- call itself recursively;
+- implement Section 10's retry mechanism.
+
+If the attempt fails because of an error, Section 8 must return failed.
+
+Section 10 is responsible for deciding whether the same contact should be attempted again.
+
+The project design explicitly requires the retry mechanism to belong exclusively to Section 10. Section 10 may call Section 8 again for a failed contact, up to a maximum of 3 total attempts.
+
+---
+
+* Result handling
+
+Case 1 — Registered Eitaa phone number
+
+When the phone number is registered on Eitaa:
+
+1. Open the Add Contact window.
+2. Enter the contact's name.
+3. Enter the normalized phone number.
+4. Submit the form.
+5. Detect that the contact was successfully added.
+6. Mark/log the contact as success using the existing database design.
+7. Close/finish the Add Contact operation as required by the actual Eitaa UI state.
+8. Return success to Section 10.
+9. Do not retry the contact.
+
+The successful result must remain success and must not enter the retry mechanism.
+
+---
+
+Case 2 — Phone number is not registered on Eitaa
+
+This case requires special attention.
+
+When an unregistered phone number is submitted, Eitaa displays the following message:
+
+"The person with this phone number is not registered on Eitaa yet."
+
+According to the project requirements, this message appears as a toast/popup associated with the Add Contact operation.
+
+The important complication is that:
+
+- This window appears for a few seconds and then disappears.
+- the message does not have its own dedicated × close button;
+- the × button in the Add Contact window must be used to close it;
+- the same Add Contact window × button then needs to be used to close the Add Contact window itself.
+- The selector for detecting the toast pop-up is existed in Section 6 (Selenium Selectors):
+
+Selectors.UNREGISTERED_TOAST
+- The existing Section 6 selectors currently include the Add Contact window close button:
+
+Selectors.CLOSE_CONTACT_WINDOW
+
+- To ensure proper interaction with the toast message, use the mechanism described in Section 7 and avoid blindly clicking the × button.
+
+The implementation should preferably use the synchronization infrastructure already provided by Section 7. Section 7 provides reusable explicit-wait helpers and specifically prohibits replacing them with arbitrary waiting mechanisms.
+
+For an unregistered number, the intended flow is:
+
+1. Open the Add Contact window.
+2. Enter the name.
+3. Enter the phone number.
+4. Submit the form.
+5. Detect the presence of the message:
+
+   "The person with this phone number is not registered on Eitaa yet."
+
+6. Once the unregistered result has been reliably detected, use the Add Contact window's existing × button to close the toast/message if it is still open.
+7. Use the same × button again as necessary to close the Add Contact window.
+8. Mark/log the contact as skipped in the database.
+9. Return skipped to Section 10.
+10. Do not retry this contact.
+
+An unregistered contact must never be returned as failed, because failed is the retryable error state.
+
+It must be returned as skipped.
+
+---
+
+Case 3 — Selenium/UI/database error
+
+If the single add-contact attempt encounters an actual operational error, such as:
+
+- an expected element cannot be found;
+- an element cannot be interacted with;
+- the Eitaa UI enters an unexpected state;
+- a Selenium exception occurs;
+- the expected successful or unregistered result cannot be determined reliably;
+- another unexpected error occurs during this single attempt;
+
+. then Section 8 must classify that attempt as: failed
+. Section 8 must return failed to Section 10.
+. It must not retry.
+. Section 10 will decide whether to call Section 8 again for the same contact.
+. The design requires failed attempts to remain distinguishable from unregistered contacts (skipped).
+
+---
+
+* Selenium requirements
+
+- Use the existing Selenium driver created by Section 4.
+- Do not create a new Chrome driver in Section 8.
+- Do not create a new Chrome profile in Section 8.
+- Do not duplicate the Chrome-session initialization code.
+
+Use the selectors already defined in Section 6 wherever applicable, including:
+
+- Selectors.HAMBURGER_MENU
+- Selectors.CONTACTS_BUTTON
+- Selectors.ADD_CONTACT_BUTTON
+- Selectors.FIRST_NAME
+- Selectors.PHONE
+- Selectors.SAVE_BUTTON
+- Selectors.UNREGISTERED_TOAST
+- Selectors.CLOSE_CONTACT_WINDOW
+
+Do not duplicate these selectors inside Section 8.
+
+If a new selector is genuinely necessary, do not silently invent one.
+Explain why it is necessary and provide the smallest justified modification required.
+
+---
+
+* Waiting/synchronization requirements
+
+Section 7 already provides the project's synchronization mechanisms.
+
+Use the existing Section 7 helpers wherever applicable, such as:
+
+- get_wait()
+- wait_present()
+- wait_visible()
+- wait_clickable()
+- wait_invisible()
+- wait_stale()
+- wait_text()
+- wait_attribute()
+- wait_until()
+- wait_and_click()
+- wait_popup_closed()
+- wait_and_type()
+
+Do not introduce time.sleep().
+Do not create an independent waiting system unless there is a demonstrated technical reason that the existing Section 7 infrastructure cannot handle the required condition.
+The project specifically requires Sections 8–10 to use the synchronization mechanisms from Section 7.
+
+---
+
+* Database requirements:
+
+Section 8 must remain compatible with the existing database schema and the existing database-access architecture.
+Do not redesign the database.
+Do not create a new database table.
+Do not introduce a new status value.
+
+Preserve the distinction between:
+
+success
+skipped
+failed
+
+---
+
+* Final response format:
+
+The most important architectural rule is:
+Section 8 performs exactly one attempt for exactly one contact. Section 10 owns all retry logic.
+
+The desired state flow is:
+
+Registered contact
+    → success
+    → no retry
+
+Unregistered phone number
+    → skipped
+    → no retry
+
+Selenium/UI/operational error
+    → failed
+    → Section 10 may retry
+    → maximum 3 total attempts
+
+Do not violate this separation of responsibilities.
+
+
+To get started, please write test code 8-4 for me so that I can send you the output.

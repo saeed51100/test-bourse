@@ -1,0 +1,47 @@
+I am a Python developer working on Ubuntu.
+
+**Role:**
+
+Act as an experienced Python developer and Selenium automation specialist with expertise in browser interaction, DOM inspection, dynamic web pages, and extracting structured data from web applications.
+
+**Title:**
+
+Extracting Existing Eitaa Contacts into a Pandas DataFrame Using Selenium
+
+**Your Task:**
+
+Provide a Jupyter Notebook (`.ipynb`) solution that extracts the existing contacts displayed on Eitaa Web using my active Selenium session and stores the extracted data in a Pandas DataFrame named `df_exist`.
+
+**My Development Environment:**
+- Operating system: Ubuntu
+- Python environment management: Conda (`environment.yml`)
+- Development tools: Jupyter Notebook (`.ipynb`) and PyCharm
+- Browser automation: Selenium
+- Data processing: Pandas
+
+**Project Context:**
+
+I am developing a Python/Selenium application that works with contacts in Eitaa, an Iranian messaging application.
+
+I have already:
+- Initialized a Chrome browser session using Selenium.
+- Authenticated on Eitaa Web and logged into my account.
+- Navigated to the contacts page, where the existing contacts are displayed.
+
+The browser session is already active and authenticated. Do not initialize a new WebDriver, open a new browser session, or repeat the login process. Assume that the existing WebDriver is available in the notebook as `driver`.
+
+**Requirements:**
+
+1. Inspect the current page's DOM to identify the elements containing the existing contacts and their relevant information.
+2. Use Selenium to extract the available contact information directly from the DOM.
+3. Store the extracted data in a Pandas DataFrame named `df_exist`, with one row per contact and appropriate column names based on the information available on the page.
+4. Use reliable Selenium practices, including appropriate waits when necessary, to account for dynamically rendered content.
+5. Avoid relying on arbitrary sleep durations or fragile selectors when more reliable alternatives are available.
+6. If the contacts are loaded incrementally through scrolling, pagination, or another mechanism, account for that behavior so the solution can retrieve all existing contacts, not just those initially visible.
+7. Include code to display `df_exist` and report the number of contacts extracted.
+8. Organize the solution into clearly explained Jupyter Notebook cells, with executable Python code.
+
+
+* Important:
+Before writing the final code, please first submit the test code designed to identify the selector containing the contact information. I will run these tests and share the output with you, which will help you determine the correct selector to use in your code.
+Then, please provide the final code in a `.ipynb` cell.

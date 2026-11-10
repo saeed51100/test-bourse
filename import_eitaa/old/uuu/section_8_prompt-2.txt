@@ -1,0 +1,71 @@
+I am a Python developer working on Ubuntu.
+Title: Analyzing Eitaa's Performance for Developers
+
+* My project uses:
+- Python + Conda (environment.yml)
+- Jupyter Notebook (.ipynb)
+- PyCharm
+- Selenium
+
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+- In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The main sections are:
+
+1. Phone-number normalization
+2. Import Excel data into the dataframe(df)
+3. Chrome/Selenium session persistence
+4. Close Selenium and remove temporary Chrome profile
+5. Selenium Selectors
+6. Reliable waits
+7. Add contact to Eitaa
+8. Main processing loop
+
+
+
+* Workflow:
+    Section 8 controls the main processing loop for adding contacts to Eitaa.
+    In each iteration, a contact is read from the dataframe (df), and then the add_contact() function from Section 7 is called to process that contact.
+
+* Section 7 task:
+    Adds only one contact to Eitaa in a single attempt.
+    In other words: The loop in Section 8 processes each contact only once using the `add_contact()` function.
+
+* Problem:
+
+The program generally functions correctly, adding contacts through the main processing loop in Section 8. However, it occasionally exhibits unexpected behavior. I would like to determine whether this is caused by a bug in my code or by restrictions or limitations imposed by the Eitaa platform.
+
+* Description of the issue:
+
+I provide the program with an Excel file containing 44 contacts: 38 are registered on Eitaa, and 6 are not.
+
+During the first run, the program successfully adds the 38 registered contacts and skips the 6 unregistered contacts. The following report is displayed in the terminal:
+
+Total contacts: 44
+Success:        38
+Skipped:        6
+
+This is the expected behavior.
+
+However, when I run the program a second time using the same list of contacts, the results are significantly different:
+
+Total contacts: 44
+Success:        16
+Skipped:        28
+
+For the second run, I ensured that the conditions were identical to those of the first run. For example, I removed the contacts from Eitaa and started a fresh Chrome/Selenium session.
+
+* My questions:
+
+Before we begin debugging the code, I would like to understand the following:
+
+1. Do messaging platforms typically impose restrictions on adding contacts to an address book, or do their restrictions primarily concern sending bulk messages?
+2. Given that the program adds contacts sequentially through a loop in Section 8 and works correctly during the first run, is it more likely that Eitaa has imposed a restriction, or that my code has a synchronization issue or a problem with the availability of UI elements?
+3. Does Eitaa use Telegram's source code, API, or underlying technology?
+4. If Eitaa's documentation does not explicitly address this issue, could you explain whether similar restrictions or behaviors are common in other messaging applications?
+5. Are there any other relevant technical considerations, platform limitations, or potential causes that I should be aware of before proceeding with code debugging?

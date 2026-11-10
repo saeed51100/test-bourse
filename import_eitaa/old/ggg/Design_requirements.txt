@@ -1,0 +1,144 @@
+* Design requirements:
+
+- The complete project specifications are defined in Project-Overview.txt.
+This document uses that file as the project-level reference while defining the design requirements and responsibilities of the individual sections.
+
+- Only the code for Section 1 is SQL. The code for Sections 2–10 is Python, and each section is implemented in a separate Jupyter Notebook cell (.ipynb).
+
+Section 1 — Database design:
+SQL code that creates the database in phpMyAdmin.
+
+Section 2 — Phone-number normalization:
+Phone numbers are normalized in this section.
+
+Section 3 — Import Excel data into the database:
+By executing this section, the contacts from the Excel file are imported into the database and become visible in phpMyAdmin.
+
+Section 4 — Selenium Chrome session persistence:
+Executing this section opens a Selenium Chrome session. Within this session, the Eitaa web interface must be accessed and the authentication process completed. From this point onward, Python interacts with Eitaa through Selenium.
+
+Section 5 — Closing Selenium and removing the temporary Chrome profile:
+Executing this section closes the current Chrome session and removes its temporary Chrome profile data, allowing a fresh session to be created later.
+
+Section 6 — Selenium Selectors:
+All selectors required by the application are defined and maintained in this section.
+
+Section 7 — Reliable waits:
+This section provides the synchronization and waiting mechanisms required for element availability, contact addition, popup handling, and other Selenium operations.
+
+Section 8 — Add Contact to Eitaa:
+
+This section processes exactly one contact and performs exactly one attempt for that contact.
+
+It:
+
+1. Opens the contacts if necessary.
+2. Opens the "Add Contact" window.
+3. Enters the normalized name and phone number.
+4. Submits the form.
+5. Determines the result of this single add-contact attempt.
+
+Section 8 is responsible only for performing one attempt and determining its result. It must not contain a retry loop and must not perform multiple attempts for the same contact.
+
+Section 8 should not itself "detect a failed contact and forward it to Section 10 as a special retry operation." It should simply return the result of its own single attempt. Section 10 interprets that result and decides whether another attempt is necessary.
+
+Registered number:
+
+1. The relevant fields are populated with the registered phone number.
+2. The contact is added successfully.
+3. The contact is marked/logged as `success` in the database.
+4. The result is returned to Section 10.
+5. Processing moves directly to the next contact.
+6. The contact is not retried.
+
+Unregistered number:
+
+1. The relevant fields are populated with the unregistered phone number.
+2. Eitaa displays a pop-up stating: "The person with this phone number is not registered on Eitaa yet."
+3. The × button in the Add Contact window is clicked to close the toast pop-up message, if it is open.
+4. The × button in the Add Contact window is clicked again to close the Add Contact window.
+5. The contact is marked/logged as `skipped` in the database.
+6. The result is returned to Section 10.
+7. Processing moves directly to the next contact.
+8. The contact is not retried.
+
+Failed/error:
+
+1. If the add-contact operation fails or an error occurs during the single attempt, the result is identified as `failed`.
+2. The failed result is returned to Section 10.
+3. Section 8 does not perform any retry for this failed result.
+4. Section 10 decides whether the contact should be attempted again, according to the maximum of 3 total attempts.
+5. If all attempts managed by Section 10 fail, the contact remains `failed` in the database and processing moves to the next contact.
+
+Section 8 uses the wait functions provided by Section 7 to ensure element availability and must not introduce any other waiting mechanism.
+
+
+
+Section 9 — Fetching the Next Contact:
+This section retrieves the next eligible contact from MySQL and returns the contact data to Section 10.
+
+Section 9 does not execute a retry loop. Its specific responsibility is to fetch the next contact from the database. Retry handling is the responsibility of Section 10.
+
+Section 10 — Main Processing Loop:
+
+This section controls the main processing loop for the 5,000 contacts and manages retries for contacts whose individual attempt in Section 8 results in `failed`.
+
+The retry loop belongs exclusively to Section 10.
+
+The processing logic is:
+
+* Section 10 obtains the next eligible contact through Section 9.
+* Section 10 passes that contact to Section 8.
+* Section 8 performs exactly one attempt and returns the result of that attempt.
+* If the result is `success`, the contact is considered successfully processed and Section 10 moves directly to the next contact. No retry is performed.
+* If the result is `skipped`, the contact is considered unregistered and Section 10 moves directly to the next contact. No retry is performed.
+* If the result is `failed`, Section 10 determines whether another attempt is allowed.
+* Section 10 may call Section 8 again for the same failed contact, up to a maximum of 3 total attempts.
+* Each retry is another single attempt performed by Section 8.
+* If any of the 3 total attempts succeeds, the contact is marked as `success` and Section 10 moves to the next contact.
+* If all 3 total attempts fail, the contact remains `failed` in the database and Section 10 moves to the next contact.
+* An unregistered contact must remain `skipped` and must never enter the retry loop.
+* A successful contact must remain `success` and must never enter the retry loop.
+
+In other words, Section 10 controls how many times Section 8 is called for a failed contact, while Section 8 itself always performs only one attempt at a time.
+
+Desired state flow:
+
+* Eitaa result                     Database state    Retry?
+
+Contact added successfully      `success`         No
+Phone number not registered     `skipped`         No
+Add operation/error fails       `failed`          Yes, Section 10 may retry
+Successful retry                `success`         No further retry
+3rd failed attempt              `failed`          No
+
+Key design point:
+
+Section 8 performs exactly one attempt for one contact and determines the result of that attempt.
+
+Section 8 does not contain the retry loop, does not perform three attempts itself, and does not manage the retry count.
+
+Section 9 only retrieves the next eligible contact from MySQL.
+
+Section 10 controls the main processing loop and owns the retry logic. When Section 8 returns `failed`, Section 10 may call Section 8 again for the same contact, up to 3 total attempts.
+
+Therefore, the three-attempt mechanism is implemented in Section 10, not inside Section 8.
+
+Important Design Requirements:
+
+* Sections 8–10 must be consistent with the existing database schema.
+* Sections 8–10 must be compatible with the Selenium session established in Section 4.
+* Sections 8–10 must use the selectors maintained in Section 6.
+* Sections 8–10 must use the synchronization and waiting mechanisms provided by Section 7.
+* Section 8 must perform exactly one contact-processing attempt.
+* Section 8 must not contain a retry loop.
+* Section 8 must not perform three attempts internally.
+* Section 8 must return the result of its single attempt to Section 10.
+* Section 9 must only retrieve the next eligible contact and must not contain the retry loop.
+* Section 10 must control the retry behavior for failed contacts.
+* Section 10 may call Section 8 multiple times for the same contact when the previous attempt resulted in `failed`.
+* The maximum number of total attempts for a failed contact is 3.
+* A successful result at any attempt changes the contact's final state to `success` and ends further processing for that contact.
+* An unregistered result changes the contact's state to `skipped` and ends further processing for that contact without retry.
+* If all 3 attempts result in `failed`, the contact remains `failed` and processing continues with the next contact.
+* The implementation must preserve the distinction between `success`, `skipped`, and `failed` database states.

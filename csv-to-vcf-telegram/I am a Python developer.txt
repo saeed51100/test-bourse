@@ -1,0 +1,16 @@
+- I am a Python developer working on Ubuntu, and I am also comfortable with Node.js.
+
+- I use Telegram Desktop on my computer.
+
+- I have a csv file containing approximately 5,000 contacts. I would like to import these contacts into Telegram, but **only add contacts who already have a Telegram account**.
+
+- My csv file has only two columns: the first column contains the first and last name, and the second column contains the phone numbers in international format, like this:
+Mohammad Kazem Abpayker - List of Nezam, 918****037
+Ezzatollah Abai - List of Nezam, 918****708
+Sina Abai - List of Nezam, 902****127
+- Phone numbers must be converted to the international Iranian format that can be used in Telegram. In other words, +98 must be added to the beginning of them.
+- I also want only two information fields in Telegram: 1- First name and last name 2- Phone number. So don't split the column of First name and last name into more fields.
+
+How can I do this effectively? Please provide a quick and clear instruction. If Telegram Desktop itself does not support this directly, do it using Python, Node.js or Telegram API.
+
+Please also mention any relevant Telegram API limitations, privacy considerations, rate limits, or risks of getting the account restricted.

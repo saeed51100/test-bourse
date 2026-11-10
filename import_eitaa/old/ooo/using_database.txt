@@ -1,0 +1,670 @@
+I am a Python developer working on Ubuntu.
+Task: Modify the code in Section 7 of the Python Selenium program without changing its functionality.
+
+* My project uses:
+- Python + Conda (environment.yml)
+- Jupyter Notebook (.ipynb)
+- PyCharm
+- Selenium
+- phpMyAdmin/MySQL
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+- In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The main sections are:
+
+1. Phone-number normalization
+2. Import Excel data into the dataframe
+3. Chrome/Selenium session persistence
+4. Close Selenium and remove temporary Chrome profile
+5. Selenium Selectors
+6. Reliable waits
+7. Add contact to Eitaa
+8. Fetching the Next Contact.
+9. Main processing loop
+
+* Section 7 tasks:
+Section 7 has the following tasks:
+1- Adding a contact to Eitaa
+2- Updating the contact's status in the database to "success", "skipped", or "failed"
+3- Returning a text string—either "success", "skipped", or "failed"
+
+    What are these?
+     - "success": when the contact's phone number is registered on Eitaa and successfully added.
+     - "skipped": when the contact's phone number is not registered on Eitaa and is not added.
+     - "failed": when the application encounters an error while attempting to add the contact to Eitaa.
+
+* Request:
+The current code for Section 7 works correctly and updates the SQL database whenever a contact is added.
+However, I have recently decided to reduce the application's complexity; instead of using a database, I want to simply import the Excel contacts into a Python DataFrame (df) and have the application use that DataFrame instead of the database.
+Consequently, I no longer need to update the database.
+
+* Task:
+Please carefully review the Section 7 code provided below and remove the code responsible for updating the database, ensuring that the functionality of the other parts remains unchanged.
+Additionally, Section 7 should return one of the following text strings: "success", "skipped", or "failed".
+
+
+# ============================================================
+# 7- Add Contact to Eitaa
+# ============================================================
+
+from selenium.common.exceptions import (
+    TimeoutException,
+    WebDriverException,
+)
+
+# ------------------------------------------------------------
+# Eitaa result
+# ------------------------------------------------------------
+
+UNREGISTERED_MESSAGE = (
+    "The person with this phone number is not registered on Eitaa yet."
+)
+
+
+# ------------------------------------------------------------
+# 7-1 Database result update
+# ------------------------------------------------------------
+
+def _update_contact_result(
+        contact_id,
+        status,
+        error_message=None,
+):
+    """
+    Update the final result of the current single attempt.
+
+    Section 7 does NOT modify the attempts counter.
+    Retry/attempt management belongs exclusively to Section 9.
+    """
+
+    conn = get_db_connection()
+
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            UPDATE contacts
+            SET
+                status = %s,
+                error_message = %s,
+                completed_at = NOW()
+            WHERE id = %s
+            """,
+            (
+                status,
+                error_message,
+                contact_id,
+            ),
+        )
+
+        conn.commit()
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# ------------------------------------------------------------
+# 7-2 Contacts page detection
+# ------------------------------------------------------------
+
+def _contacts_page_is_open(driver):
+    """
+    Return True when the Add Contact button is already visible.
+
+    This prevents Section 7 from blindly clicking the hamburger
+    menu when the Contacts area is already open.
+    """
+
+    try:
+        elements = driver.find_elements(
+            *Selectors.ADD_CONTACT_BUTTON
+        )
+
+        return any(
+            element.is_displayed()
+            for element in elements
+        )
+
+    except WebDriverException:
+        return False
+
+
+# ------------------------------------------------------------
+# 7-3 Open Contacts area when necessary
+# ------------------------------------------------------------
+
+def _open_contacts_area(driver):
+    """
+    Open the Contacts area if it is not already open.
+    """
+
+    if _contacts_page_is_open(driver):
+        return
+
+    wait_and_click(
+        driver,
+        Selectors.HAMBURGER_MENU,
+    )
+
+    wait_and_click(
+        driver,
+        Selectors.CONTACTS_BUTTON,
+    )
+
+    wait_visible(
+        driver,
+        Selectors.ADD_CONTACT_BUTTON,
+    )
+
+
+# ------------------------------------------------------------
+# 7-4 Detect the unregistered-phone result
+# ------------------------------------------------------------
+
+def _get_unregistered_result(driver):
+    """
+    Return True when the Eitaa unregistered-phone toast is visible
+    and contains the expected message.
+
+    Return False when the toast is not currently present.
+    """
+
+    try:
+        toast_elements = driver.find_elements(
+            *Selectors.UNREGISTERED_TOAST
+        )
+
+        for toast in toast_elements:
+            if not toast.is_displayed():
+                continue
+
+            text = toast.text.strip()
+
+            if UNREGISTERED_MESSAGE in text:
+                return True
+
+    except WebDriverException:
+        return False
+
+    return False
+
+
+# ------------------------------------------------------------
+# 7-5 Detect result after Save
+# ------------------------------------------------------------
+
+def _wait_for_add_contact_result(driver):
+    """
+    Wait for exactly one result of the current Add Contact attempt.
+
+    Possible return values:
+        "skipped"  -> Eitaa reported that the phone is unregistered
+        "success"  -> Add Contact window closed without that message
+
+    If neither state can be determined within the wait period,
+    wait_until() raises TimeoutException and the caller treats
+    the attempt as failed.
+    """
+
+    def result_condition(d):
+        # ----------------------------------------------------
+        # First priority: unregistered phone
+        #
+        # This must be checked before treating popup closure as
+        # success because the toast is the definitive skipped
+        # result for an unregistered number.
+        # ----------------------------------------------------
+        if _get_unregistered_result(d):
+            return "skipped"
+
+        # ----------------------------------------------------
+        # Registered/success case:
+        #
+        # After a successful Add Contact operation, the
+        # Add Contact window is expected to close.
+        #
+        # CLOSE_CONTACT_WINDOW is the existing Section 6
+        # selector and therefore is used as the popup-state
+        # indicator without inventing a new selector.
+        # ----------------------------------------------------
+        try:
+            close_buttons = d.find_elements(
+                *Selectors.CLOSE_CONTACT_WINDOW
+            )
+
+            visible_close_buttons = [
+                button
+                for button in close_buttons
+                if button.is_displayed()
+            ]
+
+            if not visible_close_buttons:
+                return "success"
+
+        except WebDriverException:
+            return False
+
+        return False
+
+    return wait_until(
+        driver,
+        result_condition,
+    )
+
+
+# ------------------------------------------------------------
+# 7-6 Close Add Contact window
+# ------------------------------------------------------------
+
+def _close_add_contact_window(driver):
+    """
+    Close the Add Contact window using the existing × button.
+
+    The function does not blindly click twice.
+
+    It first waits for the existing close button and clicks it.
+    If the popup is still visible afterwards, it conditionally
+    performs one additional click.
+    """
+
+    # --------------------------------------------------------
+    # First close attempt
+    # --------------------------------------------------------
+
+    wait_and_click(
+        driver,
+        Selectors.CLOSE_CONTACT_WINDOW,
+    )
+
+    # --------------------------------------------------------
+    # Wait for the popup to close.
+    #
+    # If it closes successfully, no second click is performed.
+    # --------------------------------------------------------
+
+    try:
+        wait_popup_closed(
+            driver,
+            Selectors.CLOSE_CONTACT_WINDOW,
+            timeout=5,
+        )
+        return
+
+    except TimeoutException:
+        pass
+
+    # --------------------------------------------------------
+    # The popup is still visible.
+    #
+    # Only now perform the second click required by the
+    # Eitaa UI behavior described for the unregistered case.
+    # --------------------------------------------------------
+
+    wait_and_click(
+        driver,
+        Selectors.CLOSE_CONTACT_WINDOW,
+    )
+
+    wait_popup_closed(
+        driver,
+        Selectors.CLOSE_CONTACT_WINDOW,
+    )
+
+
+# ------------------------------------------------------------
+# 7-7 Best-effort cleanup after an operational failure
+# ------------------------------------------------------------
+
+def _close_add_contact_window_if_open(driver):
+    """
+    Best-effort cleanup after a failed attempt.
+
+    Cleanup errors are intentionally ignored because the original
+    Selenium/UI error must remain the result of this attempt.
+    """
+
+    try:
+        elements = driver.find_elements(
+            *Selectors.CLOSE_CONTACT_WINDOW
+        )
+
+        if not any(
+                element.is_displayed()
+                for element in elements
+        ):
+            return
+
+        wait_and_click(
+            driver,
+            Selectors.CLOSE_CONTACT_WINDOW,
+            timeout=5,
+        )
+
+        try:
+            wait_popup_closed(
+                driver,
+                Selectors.CLOSE_CONTACT_WINDOW,
+                timeout=5,
+            )
+        except TimeoutException:
+            pass
+
+    except Exception:
+        pass
+
+
+# ------------------------------------------------------------
+# 7-8 Enter phone number with Eitaa country prefix
+# ------------------------------------------------------------
+
+from selenium.webdriver.common.keys import Keys
+
+
+def _enter_phone_number(driver, phone_normalized):
+    """
+    Clear the Eitaa phone field, verify that the previous phone
+    number/country prefix has been removed, then enter:
+
+        98 + normalized phone number
+
+    The '+' sign is NOT entered manually because Eitaa adds it
+    automatically.
+    """
+
+    # --------------------------------------------------------
+    # 1. Wait for the phone field
+    # --------------------------------------------------------
+
+    phone_field = wait_visible(
+        driver,
+        Selectors.PHONE,
+    )
+
+    # --------------------------------------------------------
+    # 2. Clear the existing contents
+    #
+    # Use both Selenium's clear() and keyboard selection.
+    # This is more reliable for phone inputs that use client-side
+    # formatting/masking.
+    # --------------------------------------------------------
+
+    phone_field.click()
+
+    phone_field.clear()
+
+    phone_field.send_keys(
+        Keys.CONTROL,
+        "a",
+    )
+
+    phone_field.send_keys(
+        Keys.BACKSPACE,
+    )
+
+    # --------------------------------------------------------
+    # 3. Verify that the old 98 prefix is no longer present
+    #
+    # We intentionally do NOT require value == "" because Eitaa's
+    # phone field may maintain its own country-code state.
+    # The important condition is that the old phone digits and
+    # country prefix are no longer present in the editable value.
+    # --------------------------------------------------------
+
+    def phone_field_is_cleared(d):
+        try:
+            element = d.find_element(
+                *Selectors.PHONE
+            )
+
+            value = element.get_attribute("value")
+
+            if value is None:
+                return True
+
+            value = value.strip()
+
+            # The field must not contain the old country prefix
+            # as an entered phone-number value.
+            #
+            # Eitaa may keep its own "+" / country-code UI state,
+            # so an absolutely empty value is not required here.
+
+            return (
+                    value == ""
+                    or value == "+"
+            )
+
+        except WebDriverException:
+            return False
+
+    wait_until(
+        driver,
+        phone_field_is_cleared,
+        timeout=5,
+    )
+
+    # --------------------------------------------------------
+    # 4. Prepare normalized phone number
+    # --------------------------------------------------------
+
+    phone_number = str(phone_normalized).strip()
+
+    if phone_number.startswith("98"):
+        raise ValueError(
+            "phone_normalized must not contain the country code 98."
+        )
+
+    # --------------------------------------------------------
+    # 5. Enter 98 + normalized phone number
+    #
+    # Do NOT enter '+' manually.
+    # Eitaa adds '+' automatically.
+    # --------------------------------------------------------
+
+    phone_field = wait_visible(
+        driver,
+        Selectors.PHONE,
+    )
+
+    phone_field.send_keys(
+        "98" + phone_number
+    )
+
+
+# ============================================================
+# 7-9 Main Section 8 function
+# ============================================================
+
+def add_contact(
+        contact_id,
+        full_name,
+        phone_normalized,
+):
+    """
+    Process exactly ONE contact in exactly ONE attempt.
+
+    Parameters
+    ----------
+    contact_id : int
+        Primary key of the contact in the contacts table.
+
+    full_name : str
+        Contact name.
+
+    phone_normalized : str
+        Normalized Iranian phone number already stored in the
+        contacts table.
+
+    Returns
+    -------
+    str
+        One of:
+
+            "success"
+            "skipped"
+            "failed"
+
+    Important
+    ---------
+    This function contains NO retry mechanism.
+
+    A failed result is returned to Section 9, which is
+    responsible for deciding whether another attempt is needed.
+    """
+
+    try:
+        # ----------------------------------------------------
+        # 1. Open Contacts area if necessary
+        # ----------------------------------------------------
+
+        _open_contacts_area(driver)
+
+        # ----------------------------------------------------
+        # 2. Open Add Contact window
+        # ----------------------------------------------------
+
+        wait_and_click(
+            driver,
+            Selectors.ADD_CONTACT_BUTTON,
+        )
+
+        # ----------------------------------------------------
+        # 3. Enter contact name
+        # ----------------------------------------------------
+
+        wait_and_type(
+            driver,
+            Selectors.FIRST_NAME,
+            str(full_name),
+        )
+
+        # ----------------------------------------------------
+        # 4. Enter normalized phone number
+        #
+        # IMPORTANT:
+        # Do NOT use wait_and_type() here because it clears the
+        # field and immediately types the normalized number.
+        #
+        # Instead:
+        #   1. clear the field
+        #   2. verify it is empty
+        #   3. enter 98
+        #   4. enter the normalized number
+        #
+        # The '+' sign is added automatically by Eitaa.
+        # ----------------------------------------------------
+
+        _enter_phone_number(
+            driver,
+            phone_normalized,
+        )
+
+        # ----------------------------------------------------
+        # 5. Submit Add Contact form
+        # ----------------------------------------------------
+
+        wait_and_click(
+            driver,
+            Selectors.SAVE_BUTTON,
+        )
+
+        # ----------------------------------------------------
+        # 6. Determine the result of THIS attempt
+        #
+        # No retry occurs here.
+        # ----------------------------------------------------
+
+        result = _wait_for_add_contact_result(driver)
+
+        # ----------------------------------------------------
+        # 7. Registered contact
+        # ----------------------------------------------------
+
+        if result == "success":
+            _update_contact_result(
+                contact_id=contact_id,
+                status="success",
+                error_message=None,
+            )
+
+            return "success"
+
+        # ----------------------------------------------------
+        # 8. Unregistered phone number
+        # ----------------------------------------------------
+
+        if result == "skipped":
+            # The unregistered toast has already been reliably
+            # detected. Close the Add Contact operation using
+            # the existing close-button mechanism.
+            _close_add_contact_window(driver)
+
+            _update_contact_result(
+                contact_id=contact_id,
+                status="skipped",
+                error_message=None,
+            )
+
+            return "skipped"
+
+        # ----------------------------------------------------
+        # 9.Defensive guard
+        # ----------------------------------------------------
+
+        raise RuntimeError(
+            f"Unexpected Section 8 result: {result!r}"
+        )
+
+    except Exception as exc:
+
+        # ----------------------------------------------------
+        # Any Selenium/UI/operational/database error belongs
+        # to the FAILED state.
+        #
+        # Section 8 does NOT retry.
+        # Section 10 owns retry decisions.
+        # ----------------------------------------------------
+
+        error_message = (
+            f"{type(exc).__name__}: {exc}"
+        )
+
+        # Best-effort UI cleanup.
+        _close_add_contact_window_if_open(driver)
+
+        # Record the failed result.
+        #
+        # If the database itself is unavailable, the database
+        # update can also fail. The original exception remains
+        # the failure represented by this attempt.
+        try:
+            _update_contact_result(
+                contact_id=contact_id,
+                status="failed",
+                error_message=error_message,
+            )
+        except Exception as db_exc:
+            print(
+                "Section 8 could not update the failed database state:"
+            )
+            print(
+                f"{type(db_exc).__name__}: {db_exc}"
+            )
+
+        print(
+            f"Section 8 failed for contact_id={contact_id}: "
+            f"{error_message}"
+        )
+
+        return "failed"

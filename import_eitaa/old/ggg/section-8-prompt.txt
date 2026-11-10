@@ -1,0 +1,430 @@
+# The following prompt was used to write the code for Part 8:
+
+
+# Building Section 8 — Add Contact to Eitaa
+
+I am a Python developer working on Ubuntu.
+
+I am developing a Python/Selenium application that reads approximately 5,000 contacts from an Excel file and adds them to Eitaa, an Iranian messaging application. The application mimics manual contact addition through the Eitaa web interface using Selenium and does not use Eitaa APIs.
+
+The project is implemented in Python and Jupyter Notebook (`.ipynb`) and uses Selenium and MySQL/phpMyAdmin. The application is divided into 10 sections.
+
+Sections 1 through 7 have already been implemented, tested, and verified as working correctly. **Do not unnecessarily modify, replace, redesign, or duplicate the functionality of Sections 1–7.** Section 8 must integrate with the existing code and infrastructure.
+
+## Files provided
+
+I have provided the following three files. Study all three carefully before writing any code:
+
+1. `Project-Overview.txt`
+
+   * Contains the overall project description and architecture.
+
+2. `Design_requirements.txt`
+
+   * Contains the detailed design requirements and responsibilities of Sections 8–10.
+
+3. `Sections-1-7_code.txt`
+
+   * Contains the actual code for Sections 1–7.
+   * Treat this file as the source of truth for the existing implementation, including variable names, functions, selectors, database connection logic, Selenium driver usage, and wait helpers.
+
+Use the terminology, architecture, existing variables/functions, selectors, and conventions already established in these files whenever applicable.
+
+---
+
+# Task
+
+Write the complete **implementation** of **Section 8 — Add Contact to Eitaa**.
+
+The final implementation must be provided as Python code suitable for insertion into a **new Jupyter Notebook cell immediately after Section 7**.
+
+I haven't written sections 9 and 10 yet.
+Write section 8 in a way that remains consistent with the responsibilities outlined in sections 9 and 10 of the project.
+
+Do not write Sections 9 or 10.
+Do not rewrite Sections 1–7.
+
+---
+
+# Primary responsibility of Section 8
+
+Section 8 is responsible for processing **exactly one contact in exactly one attempt**.
+
+For one supplied contact, Section 8 must:
+
+1. Open the Contacts area if necessary.
+2. Open the Eitaa "Add Contact" window.
+3. Enter the contact's name.
+4. Enter the contact's normalized phone number.
+5. Submit the Add Contact form.
+6. Determine the result of this single attempt.
+7. Update/log the appropriate database state according to the existing project design.
+8. Return a clear result to Section 10.
+
+The possible results are:
+
+* `success`
+* `skipped`
+* `failed`
+
+The exact function signature, contact-data structure, database access pattern, and naming conventions should be derived from the existing project files rather than invented independently.
+
+---
+
+# Critical retry rule
+
+**Section 8 must NEVER contain a retry loop.**
+
+Section 8 must perform only one attempt for the supplied contact.
+
+It must not:
+
+* attempt the same contact a second time;
+* perform a three-attempt loop;
+* maintain its own retry counter;
+* decide whether a failed contact should be retried;
+* call itself recursively;
+* implement Section 10's retry mechanism.
+
+If the attempt fails because of an error, Section 8 must return `failed`.
+
+Section 10 is responsible for deciding whether the same contact should be attempted again.
+
+The project design explicitly requires the retry mechanism to belong exclusively to Section 10. Section 10 may call Section 8 again for a failed contact, up to a maximum of 3 total attempts.
+
+---
+
+# Result handling
+
+## Case 1 — Registered Eitaa phone number
+
+When the phone number is registered on Eitaa:
+
+1. Open the Add Contact window.
+2. Enter the contact's name.
+3. Enter the normalized phone number.
+4. Submit the form.
+5. Detect that the contact was successfully added.
+6. Mark/log the contact as `success` using the existing database design.
+7. Close/finish the Add Contact operation as required by the actual Eitaa UI state.
+8. Return `success` to Section 10.
+9. Do not retry the contact.
+
+The successful result must remain `success` and must not enter the retry mechanism.
+
+---
+
+# Case 2 — Phone number is not registered on Eitaa
+
+This case requires special attention.
+
+When an unregistered phone number is submitted, Eitaa displays the following message:
+
+> "The person with this phone number is not registered on Eitaa yet."
+
+According to the project requirements, this message appears as a toast/popup associated with the Add Contact operation.
+
+The important complication is that:
+
+* This window appears for a few seconds and then disappears.
+* the message does **not** have its own dedicated `×` close button;
+* the `×` button in the Add Contact window must be used to close it;
+* the same Add Contact window `×` button then needs to be used to close the Add Contact window itself.
+* The selector for detecting the toast pop-up is existed in Section 6 (Selenium Selectors):
+
+```python
+Selectors.UNREGISTERED_TOAST
+```
+* The existing Section 6 selectors currently include the Add Contact window close button:
+
+```python
+Selectors.CLOSE_CONTACT_WINDOW
+```
+
+- To ensure proper interaction with the toast message, use the mechanism described in Section 7 and avoid blindly clicking the × button.
+
+The implementation should preferably use the synchronization infrastructure already provided by Section 7. Section 7 provides reusable explicit-wait helpers and specifically prohibits replacing them with arbitrary waiting mechanisms.
+
+For an unregistered number, the intended flow is:
+
+1. Open the Add Contact window.
+
+2. Enter the name.
+
+3. Enter the phone number.
+
+4. Submit the form.
+
+5. Detect the presence of the message:
+
+   `"The person with this phone number is not registered on Eitaa yet."`
+
+6. Once the unregistered result has been reliably detected, use the Add Contact window's existing `×` button to close the toast/message if it is still open.
+
+7. Use the same `×` button again as necessary to close the Add Contact window.
+
+8. Mark/log the contact as `skipped` in the database.
+
+9. Return `skipped` to Section 10.
+
+10. Do not retry this contact.
+
+An unregistered contact must **never** be returned as `failed`, because `failed` is the retryable error state.
+
+It must be returned as `skipped`.
+
+---
+
+# Case 3 — Selenium/UI/database error
+
+If the single add-contact attempt encounters an actual operational error, such as:
+
+* an expected element cannot be found;
+* an element cannot be interacted with;
+* the Eitaa UI enters an unexpected state;
+* a Selenium exception occurs;
+* the expected successful or unregistered result cannot be determined reliably;
+* another unexpected error occurs during this single attempt;
+
+then Section 8 must classify that attempt as:
+
+```text
+failed
+```
+
+Section 8 must return `failed` to Section 10.
+
+It must **not retry**.
+
+Section 10 will decide whether to call Section 8 again for the same contact.
+
+The design requires failed attempts to remain distinguishable from unregistered contacts (`skipped`).
+
+---
+
+# Selenium requirements
+
+Use the existing Selenium `driver` created by Section 4.
+
+Do not create a new Chrome driver in Section 8.
+
+Do not create a new Chrome profile in Section 8.
+
+Do not duplicate the Chrome-session initialization code.
+
+Use the selectors already defined in Section 6 wherever applicable, including:
+
+* `Selectors.HAMBURGER_MENU`
+* `Selectors.CONTACTS_BUTTON`
+* `Selectors.ADD_CONTACT_BUTTON`
+* `Selectors.FIRST_NAME`
+* `Selectors.PHONE`
+* `Selectors.SAVE_BUTTON`
+* `Selectors.UNREGISTERED_TOAST`
+* `Selectors.CLOSE_CONTACT_WINDOW`
+
+Do not duplicate these selectors inside Section 8.
+
+If a new selector is genuinely necessary, do not silently invent one. Explain why it is necessary and provide the smallest justified modification required.
+
+---
+
+# Waiting/synchronization **requirements**
+
+Section 7 already provides the project's synchronization mechanisms.
+
+Use the existing Section 7 helpers wherever applicable, such as:
+
+* `get_wait()`
+* `wait_present()`
+* `wait_visible()`
+* `wait_clickable()`
+* `wait_invisible()`
+* `wait_stale()`
+* `wait_text()`
+* `wait_attribute()`
+* `wait_until()`
+* `wait_and_click()`
+* `wait_popup_closed()`
+* `wait_and_type()`
+
+Do **not** introduce `time.sleep()`.
+
+Do not create an independent waiting system unless there is a demonstrated technical reason that the existing Section 7 infrastructure cannot handle the required condition.
+
+The project specifically requires Sections 8–10 to use the synchronization mechanisms from Section 7.
+
+---
+
+# Database requirements
+
+Section 8 must remain compatible with the existing database schema and the existing database-access architecture.
+
+Do not redesign the database.
+
+Do not create a new database table.
+
+Do not introduce a new status value.
+
+Preserve the distinction between:
+
+```text
+success
+skipped
+failed
+```
+
+The existing project schema defines these contact states as part of the contact-processing workflow.
+
+Before writing database-update code, carefully inspect the existing Sections 1–7 implementation and the design requirements to determine:
+
+* how the database connection is created;
+* how contacts are represented;
+* how IDs and phone numbers are handled;
+* how `attempts` is intended to be updated;
+* how `error_message` is intended to be stored;
+* how timestamps are intended to be handled;
+* which database operations belong in Section 8 versus Section 10.
+
+Do not make assumptions that contradict the existing project design.
+
+---
+
+# Important distinction between an attempt and a contact
+
+The project distinguishes between:
+
+* a **contact**, which may ultimately require up to 3 total attempts when failures occur;
+* an **attempt**, which Section 8 performs exactly once.
+
+For example:
+
+```text
+Contact A
+    Attempt 1 → failed
+    Attempt 2 → failed
+    Attempt 3 → success
+```
+
+In this example, Section 8 is called three separate times by Section 10.
+
+Each invocation of Section 8 still performs exactly one attempt.
+
+Section 8 itself must never contain:
+
+```python
+for attempt in range(3):
+    ...
+```
+
+or equivalent retry logic.
+
+---
+
+# Error handling and cleanup
+
+Section 8 should leave the Eitaa UI in a predictable state after each attempt whenever reasonably possible.
+
+Consider all three outcomes:
+
+```text
+success
+skipped
+failed
+```
+
+For `success` and `skipped`, ensure the Add Contact UI is handled correctly before returning.
+
+For `failed`, perform reasonable cleanup if possible, but do not allow cleanup logic to accidentally convert the actual result into `success` or `skipped`.
+
+Do not hide the original exception or error information.
+
+Where appropriate, preserve a useful error message for database logging and debugging.
+
+Do not allow an exception during cleanup to obscure the original failure.
+
+---
+
+# Return value
+
+Section 8 must return a clear machine-readable result to Section 10.
+
+The result must distinguish exactly:
+
+```text
+success
+skipped
+failed
+```
+
+Use the project's existing conventions if the supplied code already establishes an appropriate return-value pattern.
+
+Do not invent a complicated result object if the existing architecture does not require one.
+
+---
+
+# Code-quality requirements
+
+The final Section 8 implementation must be:
+
+* complete;
+* ready to paste into a new Jupyter Notebook cell;
+* compatible with the existing Sections 1–7 code;
+* PEP 8 reasonably compliant;
+* readable and maintainable;
+* based on the existing project architecture;
+* free of unnecessary duplicated code;
+* free of `time.sleep()`;
+* free of retry loops;
+* free of unnecessary new dependencies.
+
+Do not use pseudocode.
+
+Do not omit essential implementation details.
+
+Do not replace working infrastructure from Sections 1–7 with alternative implementations.
+
+---
+
+# Before writing the code
+
+First inspect all three supplied files carefully.
+
+In particular, reconcile the Section 8 implementation with:
+
+1. the existing database schema;
+2. the actual database helper functions already present;
+3. the Selenium `driver` created in Section 4;
+4. the selectors from Section 6;
+5. the wait functions from Section 7;
+6. the exact Section 8 requirements in `Design_requirements.txt`;
+7. the intended interaction between Sections 8, 9, and 10.
+
+If something required by Section 8 is not supported by the supplied files, explicitly identify the gap instead of silently inventing an incompatible design.
+
+---
+
+# Final response format
+
+The most important architectural rule is:
+
+> **Section 8 performs exactly one attempt for exactly one contact. Section 10 owns all retry logic.**
+
+The desired state flow is:
+
+```text
+Registered contact
+    → success
+    → no retry
+
+Unregistered phone number
+    → skipped
+    → no retry
+
+Selenium/UI/operational error
+    → failed
+    → Section 10 may retry
+    → maximum 3 total attempts
+```
+
+Do not violate this separation of responsibilities.

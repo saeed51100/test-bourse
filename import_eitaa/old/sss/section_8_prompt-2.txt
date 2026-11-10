@@ -1,0 +1,71 @@
+I am a Python developer working on Ubuntu.
+Task: Review and improvement of Part 7 of the Python/Selenium program.
+
+* My project uses:
+- Python + Conda (environment.yml)
+- Jupyter Notebook (.ipynb)
+- PyCharm
+- Selenium
+
+
+* Project
+I am developing a Python/Selenium application designed to add 5,000 contacts to Eitaa (an Iranian messaging app).
+The program's function is to automatically add these contacts to Eitaa.
+This process mimics manual contact addition, adding contacts one by one without relying on APIs or similar methods.
+- In short, the program reads contacts from an Excel file and automatically adds them to Eitaa.
+
+
+* The main sections are:
+
+1. Phone-number normalization
+2. Import Excel data into the dataframe(df)
+3. Chrome/Selenium session persistence
+4. Close Selenium and remove temporary Chrome profile
+5. Selenium Selectors
+6. Reliable waits
+7. Add contact to Eitaa
+8. Main processing loop
+
+
+
+* Workflow:
+    Section 8 controls the main processing loop for adding contacts to Eitaa.
+    In each iteration, a contact is read from the dataframe (df), and then the add_contact() function from Section 7 is called to process that contact.
+
+* Section 7 task:
+    Adds only one contact to Eitaa in a single attempt.
+    In other words: The loop in Section 8 processes each contact only once using the `add_contact()` function.
+
+* Problem:
+The application functions correctly and adds contacts to Eitaa, but I would like to simplify the code in Section 7 by removing unnecessary complexity.
+
+Currently, Section 7 adds a contact to Eitaa and returns one of the following three strings:
+1. `"success"` — if the contact is added successfully.
+2. `"skipped"` — if the contact is not registered on Eitaa.
+3. `"failed"` — if an error occurs.
+
+The `"failed"` result was originally introduced to prevent errors from crashing the application and to allow the main processing loop in Section 8 to continue running. However, I now want errors to propagate normally rather than being caught and converted into a `"failed"` result. This will simplify the code and make it more concise.
+
+After this change, Section 7 should return only one of the following two strings:
+1. `"success"` — if the contact is added successfully.
+2. `"skipped"` — if the contact is not registered on Eitaa.
+
+Unexpected errors should propagate to the caller instead of being caught and converted into a return value. Section 8 should not be modified as part of this task.
+
+* Request:
+Please carefully review the Section 7 code provided below and simplify it by removing the error-handling logic responsible for catching unexpected errors and returning `"failed"`.
+
+Requirements:
+- Preserve the existing functionality of Section 7, except for the requested change to error handling and return values.
+- Ensure that Section 7 returns only `"success"` or `"skipped"` during normal operation.
+- Allow unexpected errors to propagate naturally to the caller.
+- Do not modify any other section of the program, particularly Section 8 or its main processing loop.
+- Update the comments and docstrings in Section 7 to reflect the changes.
+- Keep the code clean, concise, and consistent with the existing implementation.
+
+# ============================================================
+# 7- Add Contact to Eitaa
+# ============================================================
+...
+**********
+

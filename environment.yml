@@ -1,0 +1,18 @@
+# Run This command to remove - default channel:
+# rm /home/saeed/miniconda3/.condarc
+
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.11
+  - pandas
+  - openpyxl
+  - pathlib
+  - time
+  - pip
+  - pip:
+      - selenium==4.48.0
+      - mysql-connector-python
+      - tenacity

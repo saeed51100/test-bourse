@@ -1,0 +1,92 @@
+I am a Python developer working on Ubuntu.
+
+### Role
+Act as an experienced Python developer and Selenium automation specialist with expertise in debugging, explicit waits, browser interactions, and reliable error handling.
+
+### Title
+Add a Configurable Delay to the Main Processing Loop (Section 8)
+
+### My Project uses:
+- Python + Conda (`environment.yml`)
+- Jupyter Notebook (`.ipynb`)
+- PyCharm
+- Selenium
+
+I am developing a Python/Selenium application that reads approximately 5,000 contacts from an Excel file and adds them to Eitaa, an Iranian messaging app, one at a time through browser interactions that mimic manual contact addition.
+
+### Main Sections
+1. Phone-number normalization
+2. Import Excel data into the DataFrame (`df`)
+3. Chrome/Selenium session persistence
+4. Close Selenium and remove the temporary Chrome profile
+5. Selenium selectors
+6. Reliable waits
+7. Add a contact to Eitaa
+8. Main processing loop
+
+### Workflow
+Section 8 controls the main processing loop. In each iteration, a contact is retrieved from `df` and processed by calling the `add_contact()` function defined in Section 7.
+
+### Request
+The program currently works correctly, but contacts are added in rapid succession, potentially increasing the risk of triggering Eitaa's rate limits.
+
+Please modify Section 8 to introduce a **3-second delay after each contact-processing attempt** before the next iteration begins.
+
+Requirements:
+- Define a configurable delay variable (in seconds) at the beginning of Section 8, initialized to `3`.
+- Implement the delay within the main loop using Python's `time.sleep()`.
+- Preserve the existing logic and functionality, changing only what is necessary to introduce the delay.
+- Provide the **complete, revised code for Section 8**, not just a snippet or a list of changes.
+- Include any necessary import statements.
+
+The existing Section 8 code is provided below. Use it as the basis for your revision.
+
+
+# ============================================================
+# Section 8: Main Processing Loop
+# ============================================================
+
+success_count = 0
+skipped_count = 0
+
+print("=" * 60)
+print("Section 8: Main Processing Loop")
+print("=" * 60)
+
+for _, row in df.iterrows():
+    contact_id = row["contact_id"]
+    full_name = row["full_name"]
+    phone_normalized = row["phone"]
+
+    result = add_contact(
+        full_name=full_name,
+        phone_normalized=phone_normalized
+    )
+
+    if result == "success":
+        success_count += 1
+
+    elif result == "skipped":
+        skipped_count += 1
+
+    else:
+        # An unexpected return value indicates a programming error.
+        raise ValueError(
+            f"Contact ID {contact_id}: "
+            f"Unexpected return value {result!r}"
+        )
+
+# ------------------------------------------------------------
+# Final Summary
+# ------------------------------------------------------------
+
+print("\n" + "=" * 60)
+print("Section 8: Processing Summary")
+print("=" * 60)
+
+print(f"Total contacts: {len(df)}")
+print(f"Success:        {success_count}")
+print(f"Skipped:        {skipped_count}")
+
+print("=" * 60)
+print("Section 8 completed.")
